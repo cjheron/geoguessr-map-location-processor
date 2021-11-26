@@ -1,9 +1,9 @@
 import csv
-from turfpy.measurement import boolean_point_in_polygon
+from turfpy.measurement import boolean_point_in_polygon, area
 from geojson import Point, Polygon, Feature
 import json
 
-def create_poly_dict(region_file):
+def create_vertex_dict(region_file):
     rv = {}
     with open(region_file) as json_file:
         region_dict = json.load(json_file)
@@ -15,8 +15,12 @@ def create_poly_dict(region_file):
                     tupled_sublst.append(tuple(reversed(point[:2])))
                 tupled_list.append(tupled_sublst)
 
-            rv[region] = Polygon(tupled_list)
+            rv[region] = tupled_list
     return rv
+
+def create_poly_dict(region_file):
+    vertex_dict = create_vertex_dict(region_file)
+    return {region: Polygon(lst) for region, lst in vertex_dict.items()}
 
 
 def process_input(input_file, num_new, include_all=False):
@@ -51,6 +55,28 @@ def find_region(loc, region_poly_dict):
         if boolean_point_in_polygon(point, poly):
             return region
     return 'NONE'
+
+def create_wkt_dict(region_file):
+    vertex_dict = create_vertex_dict(region_file)
+    rv = {}
+    for region, lst in vertex_dict.items():
+        lst_str = 'POLYGON('
+        for sublst in lst:
+            sublst_str = '('
+            for loc in sublst:
+                sublst_str += str(loc[0]) + ' ' + str(loc[1]) + ', '
+            sublst_str = sublst_str[:-1][:-1] + '), '
+            lst_str += sublst_str
+        lst_str = lst_str[:-1][:-1] + ')'
+        rv[region] = lst_str
+
+    return rv
+
+def create_area_dict(region_file):
+    poly_dict = create_poly_dict(region_file)
+    rv = {region: area(poly) for region, poly in poly_dict.items()}
+    rv['Sum'] = sum(area for area in rv.values())
+    return rv
 
 import click
 
